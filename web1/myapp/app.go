@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -17,6 +18,9 @@ type User struct { //제이슨이 읽을 수 있는 유저 스트럭트를 만�
 	CreatedAt time.Time `json:"created_at"`
 }
 
+var userMap map[int]*User
+var lastID int //아이디 변수
+
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Hello World")
 }
@@ -24,11 +28,19 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Get UserInfo by /users/{id}")
 }
 func getUserInfoHandler(w http.ResponseWriter, r *http.Request) { //고정 89가 아니라 아이디를 나타내줘야하므로 mux.Vars사용한다
-	user := new(User)
-	user.ID = 2
-	user.FirstName = "sujin"
-	user.LastName = "lee"
-	user.Email = "seed9878@gmail.com"
+	vars := mux.Vars(r)                 //클라이언트가 리퀘스트한 아이디가 있는지 확인 후 있으면 유저정보 반환
+	id, err := strconv.Atoi(vars["id"]) //스트링을 인티저로 바꿔줌
+	if err != nil {                     //변환과정에서 에러가 있다 하면 리퀘스트가 잘못된거니까
+		w.WriteHeader(http.StatusBadRequest) //배드리퀘스트 해주고 에러출력
+		fmt.Fprint(w, err)
+		return
+	}
+	user, ok := userMap[id] //아이디에 해당하는 유저가 실제 맵에 있는지 확인
+	if !ok {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "No User Id:", id)
+		return
+	}
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -45,16 +57,16 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) { //실제 유저
 	}
 
 	// Created User
-	user.ID = 2
+	lastID++
+	user.ID = lastID
 	user.CreatedAt = time.Now()
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(user)
-	fmt.Fprint(w, string(data))
+	userMap[user.ID] = user
 }
 
 // NewHandler make a new myapp handler
 func NewHandler() http.Handler {
+	userMap = make(map[int]*User) //맵에 유저를 언제 등록할거냐 바로위 크리에이트 할때
+	lastID = 0
 	mux := mux.NewRouter()
 
 	mux.HandleFunc("/", indexHandler)
