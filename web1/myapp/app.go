@@ -47,7 +47,7 @@ func getUserInfoHandler(w http.ResponseWriter, r *http.Request) { //고정 89가
 	data, _ := json.Marshal(user)
 	fmt.Fprint(w, string(data))
 }
-func CreateUserHandler(w http.ResponseWriter, r *http.Request) { //실제 유저를 생성하는 코드를 만들어야하는데 클라이언트가 유저정보를 제이슨으로 보냈음
+func createUserHandler(w http.ResponseWriter, r *http.Request) { //실제 유저를 생성하는 코드를 만들어야하는데 클라이언트가 유저정보를 제이슨으로 보냈음
 	user := new(User)
 	err := json.NewDecoder(r.Body).Decode(user)
 	if err != nil {
@@ -63,6 +63,54 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) { //실제 유저
 	userMap[user.ID] = user
 }
 
+func deleteUserHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, err)
+		return
+	}
+	_, ok := userMap[id]
+	if !ok {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "No User Id:", id)
+		return
+	}
+	delete(userMap, id)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, "Deleted User ID:", id)
+}
+
+func updateUserHandler(w http.ResponseWriter, r *http.Request) {
+	updateUser := new(User)
+	err := json.NewDecoder(r.Body).Decode(updateUser)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, err)
+	}
+	user, ok := userMap[updateUser.ID]
+	if !ok {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "No User ID:", updateUser.ID)
+		return
+	}
+	if updateUser.FirstName != "" {
+		user.FirstName = updateUser.FirstName
+	}
+	if updateUser.LastName != "" {
+		user.LastName = updateUser.LastName
+	}
+	if updateUser.Email != "" {
+		user.Email = updateUser.Email
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	data, _ := json.Marshal(user)
+	fmt.Fprint(w, string(data), updateUser.ID)
+}
+
 // NewHandler make a new myapp handler
 func NewHandler() http.Handler {
 	userMap = make(map[int]*User) //맵에 유저를 언제 등록할거냐 바로위 크리에이트 할때
@@ -71,9 +119,11 @@ func NewHandler() http.Handler {
 
 	mux.HandleFunc("/", indexHandler)
 	mux.HandleFunc("/users", usersHandler).Methods("GET") //GET메소드일때 이 usersHandler가 불려라 정함
-	mux.HandleFunc("/users", CreateUserHandler).Methods("POST")
+	mux.HandleFunc("/users", updateUserHandler).Methods("POST")
 	// mux.HandleFunc("/users/89", getUserInfo89Handler) 89가 아니라 아이디를 나타내는 {id:[0-9]+}문법으로 (고릴라)
-	mux.HandleFunc("/users/{id:[0-9]+}", getUserInfoHandler)
+	mux.HandleFunc("/users", createUserHandler).Methods("PUT")
+	mux.HandleFunc("/users/{id:[0-9]+}", getUserInfoHandler).Methods("GET")
+	mux.HandleFunc("/users/{id:[0-9]+}", deleteUserHandler).Methods("DELETE")
 
 	return mux
 }
