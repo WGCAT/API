@@ -3,6 +3,7 @@ package myapp
 import (
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -84,4 +85,17 @@ func TestCreateUser(t *testing.T) { //Create 설명
 	assert.NoError(err)
 	assert.NotEqual(user.ID, user2.ID) // 7. 위에 3번에서 만든 유저아이디와 6번에서 만든 유저아이디가 같아야함
 	assert.NotEqual(user.FirstName, user2.FirstName)
+}
+func TestDeleteUser(t *testing.T) { //Delete 테스트
+	assert := assert.New(t)
+
+	ts := httptest.NewServer(NewHandler())
+	defer ts.Close()
+	//Get이랑 Post는 http api에서 기본함수로 제공해주는데 delete는 없음
+	req, _ := http.NewRequest("DELETE", ts.URL+"/users/1", nil)
+	resp, err := http.DefaultClient.Do(req)
+	assert.NoError(err)
+	assert.Equal(http.StatusOK, resp.StatusCode)
+	data, _ := ioutil.ReadAll(resp.Body)
+	log.Print(string(data))
 }
